@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Payment</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+
+<body class="{{ session.get('theme', 'light') }}-mode sub-bg">
+
+<!-- FLASH NOTIFICATIONS -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="flash-container">
+    {% for category, message in messages %}
+    <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+<div class="center-box glass">
+    <h2>Parking Payment</h2>
+
+    <p><b>Car:</b> {{ booking.brand }} - {{ booking.plate }}</p>
+    <p><b>Slot:</b> {{ booking.slot_id }}</p>
+    <p><b>From:</b> {{ booking.start_time }}</p>
+    <p><b>To:</b> {{ booking.end_time }}</p>
+
+    <p><b>Amount:</b> RM {{ "%.2f"|format(booking.amount) }}</p>
+
+    <p><b>Your Reward Points:</b> {{ points }}</p>
+
+    <!-- REWARD REDEMPTION -->
+    {% if points >= 10 %}
+        <label>
+            Use Reward Points
+            <small>(10 pts = RM 1, whole RM only)</small>
+        </label>
+        <input
+            type="number"
+            name="use_points"
+            id="use_points"
+            min="10"
+            max="{{ (points // 10) * 10 }}"
+            step="10"
+            value="0">
+        <p id="redeemPreview" style="margin-top:8px;font-weight:bold;"></p>
+    {% else %}
+        <p style="font-size:14px;color:#000000;">
+            Collect at least 10 points to redeem RM 1.
+        </p>
+    {% endif %}
+
+    <!-- PAY WITH STRIPE -->
+    <button class="btn" onclick="payWithCard({{ booking.id }})">
+        Pay with Card
+    </button>
+</div>
+
+<!-- JS -->
+<script>
+function payWithCard(bookingId) {
+    const pointsInput = document.getElementById("use_points");
+    const usePoints = pointsInput ? pointsInput.value : 0;
+
+    window.location.href =
+        `/create-checkout-session/${bookingId}?use_points=${usePoints}`;
+}
+
+// Live preview of redemption
+const pointsInput = document.getElementById("use_points");
+const preview = document.getElementById("redeemPreview");
+
+if (pointsInput && preview) {
+    pointsInput.addEventListener("input", () => {
+        const pts = parseInt(pointsInput.value || 0);
+        const rm = Math.floor(pts / 10);
+        preview.innerText = rm > 0
+            ? `You will redeem RM ${rm.toFixed(2)}`
+            : "";
+    });
+}
+</script>
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+

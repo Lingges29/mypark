@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Register Vehicle</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+
+<body class="{{ session.get('theme', 'light') }}-mode sub-bg">
+
+<div class="center-box" style="top: 40%;">
+
+    <h2>{{ t("Register Vehicle", "Daftar Kenderaan") }}</h2>
+
+
+    <!-- REGISTER VEHICLE FORM -->
+    <form method="POST">
+        <input type="text" name="brand" placeholder="{{ t("Car Brand", "Jenama Kereta") }}" required>
+        <input type="text" name="plate" placeholder="{{ t("Plate Number", "Nombor Plat") }}" required>
+        <button type="submit">{{ t("Register Vehicle", "Daftar Kenderaan") }}</button>
+    </form>
+
+    <!-- REGISTERED VEHICLES TABLE -->
+    {% if vehicles %}
+    <h3 style="margin-top: 25px;">{{ t("Registered Vehicles", "Kenderaan Berdaftar") }}</h3>
+
+    <table class="vehicle-table">
+        <thead>
+            <tr>
+                <th>No.</th>
+                <th>{{ t("Brand", "Jenama") }}</th>
+                <th>{{ t("Plate Number", "Nombor Plat") }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for v in vehicles %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ v.brand }}</td>
+                <td>{{ v.plate }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+<!-- CLOSE BUTTON -->
+    <a href="{{ url_for('dashboard') }}" class="btn close-btn">{{ t("Close", "Tutup") }}</a>
+
+</div>
+
+</body>
+</html>
+
+
+
+

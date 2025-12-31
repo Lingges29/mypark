@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Settings</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+
+<body class="{{ prefs.theme }}-mode sub-bg settings-page">
+
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="flash-container">
+{% for category, message in messages %}
+<div class="flash {{ category }}">{{ message }}</div>
+{% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+<div class="center-box" style="top:45%;">
+    <h2>{{ t("Settings", "Tetapan") }}</h2>
+
+
+    <!-- CHANGE PASSWORD -->
+    <form method="POST">
+        <h3>{{ t("Change Password", "Tukar Kata Laluan") }}</h3>
+
+        <input type="password" name="new_password" placeholder="{{ t("New Password", "Kata Laluan Baru") }}">
+        <input type="password" name="confirm_password" placeholder="{{ t("Confirm Password", "Sahkan Kata Laluan") }}">
+        <button type="submit">{{ t("Update Password", "Kemaskini Kata Laluan") }}</button>
+    </form>
+
+    <hr>
+
+    <!-- THEME -->
+    <form method="POST">
+        <h3>{{ t("Theme", "Tema") }}</h3>
+        <select name="theme">
+            <option value="light" {% if prefs.theme=='light' %}selected{% endif %}>{{ t("Light Mode", "Mod Terang") }}</option>
+            <option value="dark" {% if prefs.theme=='dark' %}selected{% endif %}>{{ t("Dark Mode", "Mod Gelap") }}</option>
+        </select>
+        <button type="submit">{{ t("Apply Theme", "Guna Tema") }}</button>
+
+    </form>
+
+    <hr>
+
+    <!-- LANGUAGE -->
+    <form method="POST">
+        <h3>{{ t("Language", "Bahasa") }}</h3>
+        <select name="language">
+            <option value="en" {% if prefs.language=='en' %}selected{% endif %}>English</option>
+            <option value="ms" {% if prefs.language=='ms' %}selected{% endif %}>Bahasa Melayu</option>
+        </select>
+        <button type="submit">{{ t("Apply Language", "Guna Bahasa") }}</button>
+
+    </form>
+<!-- ================= HELP DESK ================= -->
+<div class="settings-helpdesk glass">
+    <h3>📞 {{ t("Helpdesk Support", "Meja Bantuan") }}</h3>
+
+    <p>
+        {{ t(
+            "For parking cancellation or urgent issues, please contact our admin:",
+            "Untuk pembatalan parkir atau isu segera, sila hubungi pihak pentadbir:"
+        ) }}
+    </p>
+
+    <p><b>{{ t("Email", "Emel") }}:</b> admin@mypark.com</p>
+    <p><b>{{ t("Contact Number", "Nombor Telefon") }}:</b> +60 12-345 6789</p>
+
+    <p class="helpdesk-note">
+        {{ t(
+            "Please include your booking ID when contacting support.",
+            "Sila sertakan ID tempahan anda semasa menghubungi sokongan."
+        ) }}
+    </p>
+</div>
+
+    <a href="{{ url_for('dashboard') }}" class="btn close-btn">
+    {{ t("Close", "Tutup") }}
+</a>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>User Registration</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="login-bg">
+
+<div class="center-box">
+    <h2>User Registration</h2>
+
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST">
+        <input type="text" name="name" placeholder="Full Name" required>
+        <input type="email" name="email" placeholder="Email" required>
+
+        <input type="password" id="regPassword" name="password" placeholder="Password" required>
+        <input type="password" id="confirmPassword" name="confirm_password" placeholder="Confirm Password" required>
+
+        <label style="font-size: 14px;">
+            <div class="show-password">
+    <input type="checkbox" id="showRegPwd" onclick="toggleRegisterPassword()">
+    <label for="showRegPwd">Show Password</label>
+</div>
+
+        </label>
+
+        <button type="submit">Register</button>
+    </form>
+
+    {% if show_login_link %}
+        <p style="margin-top: 15px;">
+            Already registered?
+            <a href="{{ url_for('login') }}">Back to login page</a>
+        </p>
+    {% endif %}
+</div>
+
+<script>
+function toggleRegisterPassword() {
+    const pwd = document.getElementById("regPassword");
+    const cpwd = document.getElementById("confirmPassword");
+    const type = pwd.type === "password" ? "text" : "password";
+    pwd.type = type;
+    cpwd.type = type;
+}
+</script>
+
+</body>
+</html>
+
+
+
+
+
+
+
+

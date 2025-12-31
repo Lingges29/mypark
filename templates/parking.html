@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Parking Slots</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+
+<body class="{{ session.get('theme', 'light') }}-mode sub-bg">
+<script>
+    const USER_LANG = "{{ session.get('language', 'en') }}";
+</script>
+
+<!-- ================= FLASH NOTIFICATION ================= -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="flash-container">
+    {% for category, message in messages %}
+        <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+<!-- ================= PAGE TITLE ================= -->
+<h1 class="parking-title">
+    {{ t("Parking Slots", "Petak Parkir") }}
+</h1>
+
+<!-- ================= LEGEND ================= -->
+<div class="legend">
+    <div class="legend-item">
+        <span class="legend-box green"></span>
+        <span>{{ t("Available", "Tersedia") }}</span>
+    </div>
+    <div class="legend-item">
+        <span class="legend-box yellow"></span>
+        <span>{{ t("Your Future Booking", "Tempahan Akan Datang") }}</span>
+    </div>
+    <div class="legend-item">
+        <span class="legend-box red"></span>
+        <span>{{ t("Booked", "Ditempah") }}</span>
+    </div>
+</div>
+
+<!-- ================= FLOOR SELECTOR ================= -->
+<div class="floor-selector">
+    {% for f in range(1, 5) %}
+        <a href="{{ url_for('parking', floor=f) }}"
+           class="floor-btn {% if floor == f %}active{% endif %}">
+            {{ t("Floor", "Lantai") }} {{ f }}
+        </a>
+    {% endfor %}
+</div>
+
+<div style="text-align:center; margin-bottom:15px;">
+   <button class="btn ai-btn" onclick="getAISuggestion()" id="aiBtn">
+    🤖 AI Suggest Slot
+   </button>
+
+</div>
+
+
+<!-- ================= PARKING SLOTS ================= -->
+<div class="slots">
+{% for slot in slots %}
+    <div class="slot {{ slot.color }}"
+         data-slot="{{ slot.slot_id }}"
+        {% if slot.color == 'green' %}
+            onclick="openBookPopup('{{ slot.slot_id }}', this)"
+        {% elif slot.color == 'red' and slot.booked_by == current_user %}
+            onclick="openExtendPopup('{{ slot.booking_id }}','{{ slot.start_time }}','{{ slot.end_time }}')"
+        {% elif slot.color == 'red' %}
+            onclick="openViewPopup('{{ slot.slot_id }}','{{ slot.start_time }}','{{ slot.end_time }}')"
+        {% endif %}
+    >
+        {{ slot.slot_id }}
+    </div>
+{% endfor %}
+</div>
+
+
+<!-- ================= BOOK POPUP ================= -->
+<div class="popup" id="bookPopup">
+    <span class="close" onclick="closePopup('bookPopup')">&times;</span>
+    <h3>{{ t("Book Parking Slot", "Tempah Slot Parkir") }}</h3>
+
+    <form method="POST" action="{{ url_for('book') }}">
+        <input type="hidden" name="slot_id" id="bookSlot">
+
+        <label>{{ t("Vehicle", "Kenderaan") }}</label>
+        <select name="vehicle_id" required>
+            {% for v in vehicles %}
+                <option value="{{ v.id }}">{{ v.brand }} - {{ v.plate }}</option>
+            {% endfor %}
+        </select>
+
+        <label>{{ t("Start Time", "Masa Mula") }}</label>
+        <input type="datetime-local" name="start" required>
+
+        <label>{{ t("End Time", "Masa Tamat") }}</label>
+        <input type="datetime-local" name="end" required>
+
+        <button type="submit">{{ t("Proceed to Payment", "Teruskan ke Pembayaran") }}</button>
+    </form>
+</div>
+
+<!-- ================= EXTEND POPUP ================= -->
+<div class="popup" id="extendPopup">
+    <span class="close" onclick="closePopup('extendPopup')">&times;</span>
+    <h3>{{ t("Extend Parking", "Tambah Tempoh Parkir") }}</h3>
+
+    <form method="POST" action="{{ url_for('extend') }}">
+        <input type="hidden" name="booking_id" id="extendBooking">
+
+        <label>{{ t("Current Period", "Tempoh Semasa") }}</label>
+        <p id="extendPeriod"></p>
+
+        <label>{{ t("Extend by (30 min per slot)", "Lanjutkan (30 min per slot)") }}</label>
+        <select name="extra_slots">
+            <option value="1">{{ t("30 Minutes", "30 Minit") }}</option>
+            <option value="2">{{ t("1 Hour", "1 Jam") }}</option>
+            <option value="3">{{ t("1 Hour 30 Minutes", "1 Jam 30 Minit") }}</option>
+            <option value="4">{{ t("2 Hours", "2 Jam") }}</option>
+        </select>
+
+        <button type="submit">{{ t("Proceed to Payment", "Teruskan ke Pembayaran") }}</button>
+    </form>
+</div>
+
+<!-- ================= VIEW POPUP ================= -->
+<div class="popup" id="viewPopup">
+    <span class="close" onclick="closePopup('viewPopup')">&times;</span>
+    <h3>{{ t("Parking Slot Information", "Maklumat Slot Parkir") }}</h3>
+
+    <p><strong>{{ t("Slot", "Slot") }}:</strong> <span id="viewSlot"></span></p>
+    <p><strong>{{ t("Start", "Mula") }}:</strong> <span id="viewStart"></span></p>
+    <p><strong>{{ t("End", "Tamat") }}:</strong> <span id="viewEnd"></span></p>
+</div>
+<!-- ================= AI POPUP ================= -->
+<div class="popup ai-popup" id="aiPopup">
+    <h3>{{ t("🤖 AI Recommendation", "🤖 Cadangan AI") }}</h3>
+
+    <p><b>{{ t("Slot", "Slot") }}:</b> <span id="aiSlot"></span></p>
+    <p><b>{{ t("Floor", "Lantai") }}:</b> <span id="aiFloor"></span></p>
+
+    <div class="ai-reason">
+        <span id="aiReason"></span>
+    </div>
+
+    <button class="btn" onclick="closeAIPopup()">{{ t("Got it", "Dapat") }}</button>
+</div>
+
+<!-- ================= JAVASCRIPT ================= -->
+<script>
+function openBookPopup(slot, el) {
+    document.querySelectorAll(".slot.selected").forEach(s => s.classList.remove("selected"));
+    el.classList.add("selected");
+    document.getElementById("bookSlot").value = slot;
+    document.getElementById("bookPopup").style.display = "block";
+}
+
+function openExtendPopup(bookingId, start, end) {
+    document.getElementById("extendBooking").value = bookingId;
+    document.getElementById("extendPeriod").innerText = start + " → " + end;
+    document.getElementById("extendPopup").style.display = "block";
+}
+
+function openViewPopup(slot, start, end) {
+    document.getElementById("viewSlot").innerText = slot;
+    document.getElementById("viewStart").innerText = start;
+    document.getElementById("viewEnd").innerText = end;
+    document.getElementById("viewPopup").style.display = "block";
+}
+
+function closePopup(id) {
+    document.getElementById(id).style.display = "none";
+}
+</script>
+<script>
+function runAI() {
+    fetch("/api/ai/recommend-slot")
+        .then(res => res.json())
+        .then(data => {
+            if (!data.slot_id) {
+                alert("No AI suggestion available");
+                return;
+            }
+
+            // Highlight slot
+            document.querySelectorAll(".slot").forEach(s => {
+                if (s.innerText === data.slot_id) {
+                    s.classList.add("ai-slot");
+                }
+            });
+
+            // Explanation popup
+            alert(
+                "🤖 AI Recommendation\n\n" +
+                "Slot: " + data.slot_id + "\n" +
+                "Floor: " + data.floor + "\n\n" +
+                data.reason
+            );
+        });
+}
+</script>
+
+<script>
+const AI_TEXT = {
+    en: {
+        btn: "🤖 AI Suggest Slot",
+        title: "🤖 AI Recommendation",
+        slot: "Slot:",
+        floor: "Floor:",
+        close: "Got it",
+        noSlot: "No AI suggestion available"
+    },
+    ms: {
+        btn: "🤖 Cadangan Slot AI",
+        title: "🤖 Cadangan AI",
+        slot: "Slot:",
+        floor: "Aras:",
+        close: "Faham",
+        noSlot: "Tiada cadangan AI tersedia"
+    }
+};
+
+// Apply language text on load
+document.addEventListener("DOMContentLoaded", () => {
+    const lang = USER_LANG === "ms" ? "ms" : "en";
+    document.getElementById("aiBtn").innerText = AI_TEXT[lang].btn;
+    document.getElementById("aiTitle").innerText = AI_TEXT[lang].title;
+    document.getElementById("aiSlotLabel").innerText = AI_TEXT[lang].slot;
+    document.getElementById("aiFloorLabel").innerText = AI_TEXT[lang].floor;
+    document.getElementById("aiCloseBtn").innerText = AI_TEXT[lang].close;
+});
+
+function getAISuggestion() {
+    const lang = USER_LANG === "ms" ? "ms" : "en";
+
+    // First: Smart Slot Recommendation
+    fetch("/api/ai/recommend-slot")
+        .then(res => res.json())
+        .then(slotData => {
+
+            if (!slotData.slot_id) {
+                showAIPopup("-", "-", AI_TEXT[lang].noSlot);
+                return;
+            }
+
+            // Remove previous highlight
+            document.querySelectorAll(".slot").forEach(s => {
+                s.classList.remove("ai");
+            });
+
+            // Highlight recommended slot
+            const slotDiv = document.querySelector(
+                `.slot[data-slot='${slotData.slot_id}']`
+            );
+            if (slotDiv) {
+                slotDiv.classList.add("ai");
+                slotDiv.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+
+            // Second: Peak Hour Analysis
+            fetch("/api/ai/peak-hours")
+                .then(res => res.json())
+                .then(peakData => {
+
+                    // Third: Occupancy Prediction
+                    fetch("/api/ai/occupancy-prediction")
+                        .then(res => res.json())
+                        .then(occData => {
+
+                            let fullReason = "";
+
+                            // Smart slot reason
+                            fullReason += slotData.reason + "\n\n";
+
+                            // Peak hour
+                            fullReason += "⏰ " +
+                                (lang === "ms" ? "Waktu Puncak" : "Peak Hour") +
+                                ": " + peakData.peak_hour + "\n\n";
+
+                            // Occupancy
+                            fullReason += "📊 " +
+                                (lang === "ms" ? "Ramalan Penggunaan" : "Occupancy Prediction") +
+                                ": " + occData.predicted_occupancy + "% (" +
+                                occData.occupancy_level + ")";
+
+                            showAIPopup(
+                                slotData.slot_id,
+                                slotData.floor,
+                                fullReason
+                            );
+                        });
+                });
+        })
+        .catch(() => {
+            showAIPopup("-", "-", "AI analysis failed.");
+        });
+}
+
+function showAIPopup(slot, floor, reason) {
+    document.getElementById("aiSlot").innerText = slot;
+    document.getElementById("aiFloor").innerText = floor;
+    document.getElementById("aiReason").innerText = reason;
+    document.getElementById("aiPopup").style.display = "block";
+}
+
+function closeAIPopup() {
+    document.getElementById("aiPopup").style.display = "none";
+}
+</script>
+
+
+
+<!-- ================= CLOSE BUTTON ================= -->
+<div style="text-align:center; margin-bottom: 40px;">
+    <a href="{{ url_for('dashboard') }}" class="btn close-btn">
+        {{ t("Close", "Tutup") }}
+    </a>
+</div>
+
+</body>
+</html>

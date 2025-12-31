@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Parking History</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="{{ session.get('theme', 'light') }}-mode sub-bg">
+
+<div class="history-wrapper">
+
+    <h1 class="history-title">
+    {{ t("Parking History", "Sejarah Parkir") }}
+</h1>
+
+
+    <div class="history-container">
+        {% for h in history %}
+            <div class="history-card">
+                <p><b>{{ t("Car", "Kenderaan") }}:</b> {{ h.brand }} - {{ h.plate }}</p>
+                <p><b>{{ t("Slot", "Slot") }}:</b> {{ h.slot_id }}</p>
+                <p><b>{{ t("From", "Dari") }}:</b> {{ h.start_time }}</p>
+                <p><b>{{ t("To", "Hingga") }}:</b> {{ h.end_time }}</p>
+
+                {% if h.qr_path %}
+                    <img src="{{ url_for('static', filename=h.qr_path.split('static/')[1]) }}" class="qr-img">
+                {% endif %}
+            </div>
+        {% else %}
+            <p class="no-history">{{ t("No parking history found.", "Tiada sejarah parkir ditemui.") }}</p>
+        {% endfor %}
+    </div>
+
+    <a href="{{ url_for('dashboard') }}" class="btn back-btn">{{ t("Back to Dashboard", "Kembali ke Papan Pemuka") }}</a>
+</div>
+
+</body>
+</html>
+
+
+

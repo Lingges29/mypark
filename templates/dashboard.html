@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>User Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<!-- AI Help Desk -->
+<div id="aiChatBox" class="ai-chatbox glass">
+    <div class="ai-header">🤖 AI Help Desk</div>
+
+    <div id="aiMessages" class="ai-messages">
+        <div class="ai-msg bot">
+        {{ t("Hi! How can I help you today?",
+         "Hai! Bagaimana saya boleh membantu anda hari ini?") }}
+    </div>
+
+    </div>
+
+    <input type="text"
+       id="aiInput"
+       placeholder="{{ t(
+           'Ask me about parking, booking, payment...',
+           'Tanya saya tentang parkir, tempahan, pembayaran...'
+       ) }}"
+           onkeypress="if(event.key==='Enter') sendAIMessage()">
+</div>
+
+<button class="ai-float-btn" onclick="toggleAIChat()">🤖</button>
+
+<body class="{{ session.get('theme', 'light') }}-mode dashboard-bg">
+
+<!-- FLASH -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="flash-container">
+    {% for category, message in messages %}
+    <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+<!-- NAV BAR (UNCHANGED) -->
+<div class="top-nav">
+    <div class="nav-item" onclick="toggleMenu('vehicleMenu')">
+        {{ t("Vehicle", "Kenderaan") }}
+        <div class="dropdown click-dropdown" id="vehicleMenu">
+            <a href="{{ url_for('vehicle') }}">{{ t("Register Vehicle", "Daftar Kenderaan") }}</a>
+        </div>
+    </div>
+
+    <div class="nav-item" onclick="toggleMenu('parkingMenu')">
+        {{ t("Parking", "Parkir") }}
+        <div class="dropdown click-dropdown" id="parkingMenu">
+            <a href="{{ url_for('parking') }}">{{ t("View Parking", "Lihat Parkir") }}</a>
+        </div>
+    </div>
+
+    <div class="nav-item" onclick="toggleMenu('historyMenu')">
+        {{ t("Parking History", "Sejarah Parkir") }}
+        <div class="dropdown click-dropdown" id="historyMenu">
+            <a href="{{ url_for('history') }}">{{ t("View Parking History", "Lihat Sejarah Parkir") }}</a>
+        </div>
+    </div>
+
+    <div class="nav-item" onclick="toggleMenu('accountMenu')">
+        {{ t("Account", "Akaun") }}
+        <div class="dropdown click-dropdown" id="accountMenu">
+            <a href="{{ url_for('settings') }}">{{ t("Settings", "Tetapan") }}</a>
+            <a href="{{ url_for('logout') }}">{{ t("Log Out", "Log Keluar") }}</a>
+        </div>
+    </div>
+</div>
+
+<!-- DASHBOARD CONTENT -->
+<div class="dashboard-wrapper">
+
+    <!-- GREETING -->
+    <div class="dashboard-title">
+        <h1>{{ t("Welcome back","Selamat kembali") }} {{ name }}! 👋</h1>
+        <p>{{ t("Your parking overview today", "Gambaran parkir hari ini") }}</p>
+    </div>
+
+
+    <!-- STATUS CARDS -->
+    <div class="dashboard-cards">
+
+        <div class="dashboard-card glass">
+            <h3>{{ t("Active Parking", "Parkir Aktif") }}</h3>
+            {% if active_parking %}
+                <p><b>{{ t("Slot:", "Slot:") }}</b> {{ active_parking.slot_id }}</p>
+                <p><b>{{ t("Ends:", "Berakhir:") }}</b> {{ active_parking.end_time }}</p>
+            {% else %}
+                <p>{{ t("No active parking", "Tiada parkir yang aktif") }}</p>
+            {% endif %}
+        </div>
+
+        <div class="dashboard-card glass">
+            <h3>{{ t("Vehicles", "Kenderaan") }}</h3>
+            <p>{{ vehicle_count }} {{ t("registered", "didafarkan") }}</p>
+        </div>
+
+        <div class="dashboard-card glass">
+            <h3>{{ t("Reward Points", "Mata Ganjaran") }}</h3>
+            <p>{{ points }} {{ t("points", "mata ganjaran") }}</p>
+        </div>
+
+    </div>
+
+    <!-- COUNTDOWN -->
+    <div class="dashboard-countdown glass">
+        <h3>{{ t("Live Countdown", "Pengiraan Detik Langsung") }}</h3>
+        {% if active_parking %}
+            <p id="countdown" data-end="{{ active_parking.end_time }}"></p>
+        {% else %}
+            <p>{{ t("No active session", "Tiada sesi aktif") }}</p>
+        {% endif %}
+    </div>
+
+
+    <!-- RECENT ACTIVITY -->
+    <div class="dashboard-activity glass">
+        <h3>{{ t("Recent Activity", "Aktiviti Terkini") }}</h3>
+        {% if recent_activity %}
+            <ul>
+            {% for r in recent_activity %}
+                <li>✔ Slot {{ r.slot_id }} — {{ r.created_at }}</li>
+            {% endfor %}
+            </ul>
+        {% else %}
+            <p>{{ t("No recent activity", "Tiada aktiviti terkini") }}</p>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- JS -->
+<script>
+function toggleMenu(menuId) {
+    document.querySelectorAll(".click-dropdown").forEach(menu => {
+        menu.style.display = menu.id === menuId && menu.style.display !== "block"
+            ? "block" : "none";
+    });
+}
+
+// Countdown timer
+const cd = document.getElementById("countdown");
+if (cd) {
+    const end = new Date(cd.dataset.end);
+    setInterval(() => {
+        const diff = end - new Date();
+        if (diff <= 0) {
+            cd.innerText = "Expired";
+            return;
+        }
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        cd.innerText = `${h}h ${m}m ${s}s remaining`;
+    }, 1000);
+}
+</script>
+<script>
+fetch("/api/ai/recommend-slot")
+  .then(res => res.json())
+  .then(data => {
+      document.getElementById("aiDash").innerText =
+          data.slot_id
+          ? "Try Slot " + data.slot_id + " (Floor " + data.floor + ")"
+          : "No suggestion available";
+  });
+</script>
+<script>
+function toggleAIChat() {
+    document.getElementById("aiChatBox").classList.toggle("show");
+}
+
+function sendAIMessage() {
+    const input = document.getElementById("aiInput");
+    const msg = input.value.trim();
+    if (!msg) return;
+
+    appendMsg("user", msg);
+    input.value = "";
+
+    fetch("/api/ai/help", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg })
+    })
+    .then(res => res.json())
+    .then(data => appendMsg("bot", data.reply));
+}
+
+function appendMsg(sender, text) {
+    const box = document.getElementById("aiMessages");
+    const div = document.createElement("div");
+    div.className = "ai-msg " + sender;
+    div.innerText = text;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+}
+</script>
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
