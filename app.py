@@ -38,7 +38,6 @@ def init_db():
     )
     """)
 
-    # Add new columns safely
     try:
         c.execute("ALTER TABLE users ADD COLUMN theme TEXT DEFAULT 'light'")
     except sqlite3.OperationalError:
@@ -49,7 +48,6 @@ def init_db():
     except sqlite3.OperationalError:
         pass
 
-    # other tables unchanged
     c.execute("""
     CREATE TABLE IF NOT EXISTS vehicles (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -269,7 +267,7 @@ def register():
         password = request.form["password"]
         confirm = request.form["confirm_password"]
 
-        # ❌ Passwords do not match
+        # Passwords do not match
         if password != confirm:
             error = "Passwords do not match."
             return render_template(
@@ -289,7 +287,7 @@ def register():
             conn.commit()
             conn.close()
 
-            # ✅ New email → redirect to login
+            # New email → redirect to login
             return redirect(url_for("login"))
 
         except sqlite3.IntegrityError:
@@ -320,8 +318,8 @@ def login():
         if user:
             session["user_id"] = user["id"]
             session["user_name"] = user["name"]
-            session["theme"] = user["theme"]      # ✅ ADD
-            session["language"] = user["language"]  # ✅ ADD
+            session["theme"] = user["theme"] 
+            session["language"] = user["language"] 
             return redirect(url_for("dashboard"))
         else:
             error = "Invalid user"
@@ -346,11 +344,11 @@ def dashboard():
     conn = get_db()
     c = conn.cursor()
 
-    # 1️⃣ Reward points
+    # 1️. Reward points
     c.execute("SELECT reward_points FROM users WHERE id=?", (user_id,))
     points = c.fetchone()["reward_points"]
 
-    # 2️⃣ Active parking (current time within booking)
+    # 2️. Active parking (current time within booking)
     now = datetime.now().isoformat()
     c.execute("""
         SELECT * FROM bookings
@@ -362,11 +360,11 @@ def dashboard():
     """, (user_id, now, now))
     active_parking = c.fetchone()
 
-    # 3️⃣ Vehicle count
+    # 3️. Vehicle count
     c.execute("SELECT COUNT(*) FROM vehicles WHERE user_id=?", (user_id,))
     vehicle_count = c.fetchone()[0]
 
-    # 4️⃣ Recent activity (latest 5 bookings)
+    # 4️. Recent activity (latest 5 bookings)
     c.execute("""
         SELECT slot_id, created_at
         FROM bookings
@@ -465,7 +463,7 @@ def parking():
         active_booking = c.fetchone()
 
         if active_booking:
-            # 🔴 ACTIVE (RED for everyone)
+            # ACTIVE (RED for everyone)
             slots.append({
                 "slot_id": slot_id,
                 "status": "booked",
@@ -490,7 +488,7 @@ def parking():
         future_booking = c.fetchone()
 
         if future_booking:
-            # 🟡 FUTURE (YELLOW for current user only)
+            # FUTURE (YELLOW for current user only)
             slots.append({
                 "slot_id": slot_id,
                 "status": "future",
@@ -500,7 +498,7 @@ def parking():
                 "end_time": future_booking["end_time"]
             })
         else:
-            # 🟢 AVAILABLE
+            # AVAILABLE
             slots.append({
                 "slot_id": slot_id,
                 "status": "available",
@@ -536,7 +534,7 @@ def ai_recommend_slot():
     conn = get_db()
     c = conn.cursor()
 
-    # 1️⃣ Find available slots (no active booking)
+    # 1️. Find available slots (no active booking)
     c.execute("""
         SELECT ps.slot_id, ps.floor
         FROM parking_slots ps
@@ -553,7 +551,7 @@ def ai_recommend_slot():
         conn.close()
         return {"slot_id": None, "reason": "No available slots"}
 
-    # 2️⃣ Find least-used slot historically
+    # 2️. Find least-used slot historically
     c.execute("""
         SELECT ps.slot_id, ps.floor, COUNT(b.id) AS usage
         FROM parking_slots ps
@@ -688,7 +686,6 @@ def ai_help():
 
     return {"reply": response}
 
-
 # -------------------------------------------------
 # BOOK
 # -------------------------------------------------
@@ -704,7 +701,7 @@ def book():
     conn = get_db()
     c = conn.cursor()
 
-    # 🔴 OVERLAP CHECK (PASTE HERE)
+    # OVERLAP CHECK (PASTE HERE)
     c.execute("""
         SELECT 1 FROM bookings
         WHERE slot_id=?
@@ -722,7 +719,7 @@ def book():
         flash("This slot is already booked during the selected time.", "error")
         return redirect(url_for("parking"))
 
-    # ✅ INSERT BOOKING (ONLY IF NO CONFLICT)
+    # INSERT BOOKING (ONLY IF NO CONFLICT)
     c.execute("""
         INSERT INTO bookings (user_id, vehicle_id, slot_id, start_time, end_time, amount, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -854,21 +851,21 @@ def confirm_payment():
     user_id = row["user_id"]
     current_points = row["reward_points"]
 
-    # 🔒 SAFETY CHECK
+    # SAFETY CHECK
     if use_points > current_points:
         use_points = 0
 
-    # 🔒 Only multiples of 10 allowed
+    # Only multiples of 10 allowed
     use_points = (use_points // 10) * 10
 
-    # 💸 Calculate discount
+    # Calculate discount
     discount_rm = use_points // 10  # 10 pts = RM1
     final_amount = max(amount - discount_rm, 0)
 
-    # 🎯 Calculate earned points (RM 1 = 1 point)
+    # Calculate earned points (RM 1 = 1 point)
     earned_points = int(final_amount)
 
-    # 🔄 Update user reward points
+    # Update user reward points
     new_points = current_points - use_points + earned_points
 
     c.execute("""
@@ -877,13 +874,13 @@ def confirm_payment():
         WHERE id=?
     """, (new_points, user_id))
 
-    # 🧾 Record payment
+    # Record payment
     c.execute("""
         INSERT INTO payments (booking_id, payment_time)
         VALUES (?, ?)
     """, (booking_id, datetime.now().isoformat()))
 
-    # 🔳 Generate QR
+    # Generate QR
     qr_path = generate_qr(
         f"MyPark Booking ID: {booking_id}",
         f"booking_{booking_id}.png"
@@ -898,7 +895,7 @@ def confirm_payment():
     conn.commit()
     conn.close()
 
-    # 🔔 Correct notification
+    # Correct notification
     if action == "reserve":
         flash("Your parking slot has been reserved!", "success")
     else:
@@ -932,7 +929,7 @@ def create_checkout_session(booking_id):
 
     amount = float(booking["amount"])
 
-    # 🎯 REWARD REDEMPTION LOGIC
+    # REWARD REDEMPTION LOGIC
     redeem_rm = use_points // 10  # 10 pts = RM 1
     redeem_rm = min(redeem_rm, int(amount))  # cannot exceed amount
 
@@ -979,7 +976,7 @@ def payment_success(booking_id):
     conn = get_db()
     c = conn.cursor()
 
-    # 1️⃣ Get booking details
+    # 1️. Get booking details
     c.execute("""
         SELECT user_id, amount
         FROM bookings
@@ -995,17 +992,17 @@ def payment_success(booking_id):
     user_id = booking["user_id"]
     original_amount = float(booking["amount"])
 
-    # 2️⃣ Get redemption info from session
+    # 2️. Get redemption info from session
     redeemed_points = session.pop("redeem_points", 0)
     final_amount = session.pop("final_amount", original_amount)
 
-    # 3️⃣ Insert Stripe-confirmed payment
+    # 3️. Insert Stripe-confirmed payment
     c.execute("""
         INSERT INTO payments (booking_id, payment_time)
         VALUES (?, ?)
     """, (booking_id, datetime.now().isoformat()))
 
-    # 4️⃣ 🎯 Reward points logic
+    # 4️. Reward points logic
     # RM 1 = 1 point (based on FINAL amount paid)
     earned_points = int(final_amount)
 
@@ -1015,7 +1012,7 @@ def payment_success(booking_id):
         WHERE id=?
     """, (redeemed_points, earned_points, user_id))
 
-    # 5️⃣ Generate QR code for parking history
+    # 5️. Generate QR code for parking history
     qr_data = f"MyPark Booking ID: {booking_id}"
     qr_filename = f"booking_{booking_id}.png"
     qr_path = generate_qr(qr_data, qr_filename)
@@ -1029,7 +1026,7 @@ def payment_success(booking_id):
     conn.commit()
     conn.close()
 
-    # 6️⃣ Success message
+    # 6️. Success message
     if redeemed_points > 0:
         flash(
             f"Payment successful! RM {original_amount - final_amount:.2f} redeemed, "
@@ -1147,8 +1144,6 @@ def admin_login():
             error = "Invalid admin credentials"
 
     return render_template("admin_login.html", error=error)
-
-
 
 @app.route("/admin/dashboard")
 def admin_dashboard():
